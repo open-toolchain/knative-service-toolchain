@@ -134,13 +134,13 @@ stages:
     type: text
   - name: SERVICE_FILE_UPDATE_INSTRUCTIONS
     value:
-      $text: service_update_instructions.yml
+      $text: service_update_instructions.yaml
     type: text
   - name: SERVICE_FILE
-    value: service.yml
+    value: service.yaml
     type: text
   - name: SERVICE_FILE_UPDATE_INSTRUCTIONS_FILE
-    value: service_update_instructions.yml
+    value: service_update_instructions.yaml
     type: text
   jobs:
   - name: Deploy
@@ -195,9 +195,9 @@ stages:
         echo -e "Cluster role binding created."
       fi
 
-      #Update service.yml with service and image name
+      #Update service.yaml with service and image name
       echo "=========================================================="
-      echo "CHECKING SERVICE.YML manifest"
+      echo "CHECKING SERVICE.YAML manifest"
       if [ ! -f ${SERVICE_FILE} ]; then
         echo -e "Knative service file '${SERVICE_FILE}' not found. Ensure a Knative service definition file named '${SERVICE_FILE}' is located at the project's root directory. Alternatively, change the SERVICE_FILE environment property in the Deploy stage configuration."
         exit 1
