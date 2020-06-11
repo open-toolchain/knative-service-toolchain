@@ -5,7 +5,7 @@ template.description: "このツールチェーンを使用して、Knative サ�
 template.gettingStarted: " **ツールチェーンの準備ができました**\n**クイック・スタート:** Git リポジトリーに対する変更をコミットして、新しい Docker イメージ・ビルドを起動してください。このビルドは脆弱性についてスキャンされ、Kubernetes クラスターにデプロイされます。 段階的な説明については、このツールチェーンの[チュートリアル](https://www.ibm.com/cloud/garage/tutorials/use-develop-kubernetes-app-toolchain?task=2) を参照してください。"
 deploy.title: "Hello World のデプロイ・ステージ"
 deploy.description: "hello-world simple ツールチェーン"
-deploy.longDescription: "Delivery Pipeline は、Docker アプリケーションの継続的なビルド、テスト、およびデプロイを自動化します。"
+deploy.longDescription: "Delivery Pipeline は、Docker アプリケーションの継続的なビルド、テスト、デプロイを自動化します。"
 deploy.appName: "アプリ名"
 deploy.appDescription: "アプリケーションの名前。"
 deploy.apikeyDescription: "IBM Cloud API キーは、IBM Cloud Kubernetes Service API へのアクセス、およびクラスターとの対話に使用されます。 API キーは、「bx iam api-key-create」を使用して、または**「API キーの作成」**をクリックしてコンソール (https://cloud.ibm.com/iam#/apikeys) で取得できます (API キーはそれぞれ 1 回のみ表示されます)。"
