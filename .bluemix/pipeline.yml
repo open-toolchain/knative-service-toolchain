@@ -46,7 +46,7 @@ stages:
       echo "Build environment variables:"
       echo "REGISTRY_URL=${REGISTRY_URL}"
       echo "REGISTRY_NAMESPACE=${REGISTRY_NAMESPACE}"
-      echo "IMAGE_NAME=${IMAGE_NAME}" 
+      echo "IMAGE_NAME=${IMAGE_NAME}"
       echo "BUILD_NUMBER=${BUILD_NUMBER}"
       echo "ARCHIVE_DIR=${ARCHIVE_DIR}"
       echo "APP_PORT=${APP_PORT}"
@@ -129,25 +129,20 @@ stages:
   - name: buildProperties
     value: build.properties
     type: file
+  - name: API_KEY
+    value: ${API_KEY}
+    type: secure
   - name: CLUSTER_NAMESPACE
     value: ${PROD_CLUSTER_NAMESPACE}
     type: text
-  - name: SERVICE_FILE_UPDATE_INSTRUCTIONS
-    value:
-      $text: service_update_instructions.yaml
-    type: text
   - name: SERVICE_FILE
     value: service.yaml
-    type: text
-  - name: SERVICE_FILE_UPDATE_INSTRUCTIONS_FILE
-    value: service_update_instructions.yaml
     type: text
   jobs:
   - name: Deploy
     type: deployer
     deploy_type: kubernetes
     target:
-      application: ${CF_APP}
       api_key: ${API_KEY}
       region_id: ${PROD_REGION_ID}
       kubernetes_cluster: ${PROD_CLUSTER_NAME}
@@ -195,37 +190,24 @@ stages:
         echo -e "Cluster role binding created."
       fi
 
-      # Update service.yaml with service and image name
-      echo "=========================================================="
-      echo "CHECKING SERVICE.YAML manifest"
-      if [ ! -f ${SERVICE_FILE} ]; then
-        echo -e "Knative service file '${SERVICE_FILE}' not found. Ensure a Knative service definition file named '${SERVICE_FILE}' is located at the project's root directory. Alternatively, change the SERVICE_FILE environment property in the Deploy stage configuration."
-        exit 1
-      fi
-      # Get kube service name from metadata name in service file
-      export KUBE_SERVICE_NAME=$(yq read $SERVICE_FILE metadata.name)
-      if [ "$KUBE_SERVICE_NAME" == "null" ]; then
-          echo "ERROR: no service name found in service file, $SERVICE_FILE"
-          exit 1
+      echo "Configuring access to private image registry"
+      IMAGE_PULL_SECRET_NAME="ibmcloud-toolchain-${PIPELINE_TOOLCHAIN_ID}-${REGISTRY_URL}"
+      if ! kubectl get secret ${IMAGE_PULL_SECRET_NAME}; then
+        echo -e "${IMAGE_PULL_SECRET_NAME} not found, creating it"
+        # for Container Registry, docker username is 'token' and email does not matter
+        kubectl create secret docker-registry ${IMAGE_PULL_SECRET_NAME} --docker-server=${REGISTRY_URL} --docker-password=${API_KEY} --docker-username=iamapikey --docker-email=a@b.com
       fi
 
-      echo "UPDATING service manifest with image information"
-      echo "${SERVICE_FILE_UPDATE_INSTRUCTIONS}" | sed -e "s/REGISTRY_URL/${REGISTRY_URL}/g" -e "s/REGISTRY_NAMESPACE/${REGISTRY_NAMESPACE}/g" -e "s/IMAGE_NAME/${IMAGE_NAME}/g" -e "s/BUILD_NUMBER/${BUILD_NUMBER}/g" > ${SERVICE_FILE_UPDATE_INSTRUCTIONS_FILE}
-      echo "Service file update instructions:"
-      cat ${SERVICE_FILE_UPDATE_INSTRUCTIONS_FILE}
-      IMAGE_REPOSITORY=${REGISTRY_URL}/${REGISTRY_NAMESPACE}/${IMAGE_NAME}
-      echo -e "Updating ${SERVICE_FILE} with image name: ${IMAGE_REPOSITORY}"
-      UPDATED_SERVICE_FILE=tmp.${SERVICE_FILE}
-      yq write --doc 0 -s ${SERVICE_FILE_UPDATE_INSTRUCTIONS_FILE} ${SERVICE_FILE} > ${UPDATED_SERVICE_FILE}
+      # Update service.yaml with image and image pull secret names and deploy app to Knative
+      IMAGE_REPOSITORY=${REGISTRY_URL}/${REGISTRY_NAMESPACE}/${IMAGE_NAME}:${BUILD_NUMBER}
 
-      # Deploy the most recent revision of the specified image as specified in the updated service file
-      echo "=========================================================="
-      cat ${UPDATED_SERVICE_FILE}
-      echo "Deploying Knative service..."
-      kubectl apply -f ${UPDATED_SERVICE_FILE}
-
+      eval "cat << EOF | kubectl apply -f -
+      $(cat service.yaml)
+      EOF"
 
       echo "Checking if application is ready..."
+      export KUBE_SERVICE_NAME=$(yq read $SERVICE_FILE metadata.name)
+
       for ITERATION in {1..30}
       do
         sleep 3
@@ -292,7 +274,7 @@ stages:
       if [ "$(curl -is $APPLICATION_URL --connect-timeout 3 --max-time 5 --retry 2 --retry-max-time 30 | head -n 1 | grep 200)" != "" ]; then
         echo "Successfully reached health endpoint at $APPLICATION_URL"
         echo "====================================================================="
-      elif [ "$(curl -is "$APPLICATION_URL/health" --connect-timeout 3 --max-time 5 --retry 2 --retry-max-time 30 | head -n 1 | grep 200)" != "" ]; then 
+      elif [ "$(curl -is "$APPLICATION_URL/health" --connect-timeout 3 --max-time 5 --retry 2 --retry-max-time 30 | head -n 1 | grep 200)" != "" ]; then
         echo "Successfully reached health endpoint at $APPLICATION_URL/health"
         echo "====================================================================="
       else
